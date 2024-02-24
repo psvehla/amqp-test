@@ -1,24 +1,33 @@
-import amqp
+from proton import Message
+from proton.handlers import MessagingHandler
+from proton.reactor import Container
 
-class MyConsumer:
-    def __init__(self, queue_name):
-        self.queue_name = queue_name
-        self.message_count = 0
+class ReceiveHandler(MessagingHandler):
+    def __init__(self, server, address):
+        super(ReceiveHandler, self).__init__()
+        self.server = server
+        self.address = address
+        self.count = 0
 
-    def on_message(self, channel, method_frame, header_frame, body):
-        self.message_count += 1
-        print(f"Received message: {body.decode()}")
-        print(f"Message count: {self.message_count}")
+    def on_start(self, event):
+        conn = event.container.connect(self.server)
+        event.container.create_receiver(conn, self.address)
 
-    def consume_messages(self):
-        conn = amqp.Connection(host="localhost", port=5672, virtual_host="/", username="guest", password="guest", insist=False)
-        chan = conn.channel()
-        chan.queue_declare(queue=self.queue_name, durable=True, exclusive=False, auto_delete=False)
-        chan.basic_consume(queue=self.queue_name, callback=self.on_message, no_ack=True)
-        print("Waiting for messages. To exit press CTRL+C")
-        while True:
-            chan.wait()
+    def on_message(self, event):
+        self.count += 1
+        print(f"Received message #{self.count}: {event.message.body}")
+
+    def on_connection_closed(self, event):
+        print(f"Connection closed. Total messages received: {self.count}")
 
 if __name__ == "__main__":
-    consumer = MyConsumer('my_queue')
-    consumer.consume_messages()
+    # Update these variables with your server's information
+    server_url = 'amqp://user:password@hostname:port'
+    queue_name = 'your_queue_name'
+
+    try:
+        handler = ReceiveHandler(server_url, queue_name)
+        container = Container(handler)
+        container.run()
+    except KeyboardInterrupt:
+        print('Interrupted')
