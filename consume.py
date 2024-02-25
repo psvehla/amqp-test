@@ -23,7 +23,7 @@ class ReceiveHandler(MessagingHandler):
 if __name__ == "__main__":
     # Update these variables with your server's information
     server_url = 'amqp://artemis:artemis@localhost:61616'
-    queue_name = 'pex'
+    queue_name = 'pex2'
 
     try:
         handler = ReceiveHandler(server_url, queue_name)
